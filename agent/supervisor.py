@@ -1,0 +1,120 @@
+"""
+Supervisor — v3 Multi-Agent Routing
+====================================
+Routes user queries to one or MORE agents simultaneously.
+This is the v3 pattern where the supervisor can identify multiple
+intents in a single query and dispatch them to different agents.
+
+Example:
+  User: "Search the web for AI trends AND find procurement rules in our docs"
+  Supervisor: → [web_rag_agent, doc_rag_agent]  (two agents!)
+"""
+
+import logging
+from pydantic import BaseModel, Field
+from langgraph.graph import MessagesState, END
+from langgraph.types import Command
+from langchain_core.messages import SystemMessage
+
+logger = logging.getLogger(__name__)
+
+
+# --- Agent definitions for the supervisor ---
+AGENT_DESCRIPTIONS = """
+agent_name: web_rag_agent
+agent_description: Handles questions requiring current web information, market trends, news, competitor analysis, or any real-time data from the internet. Uses DuckDuckGo web search.
+
+agent_name: doc_rag_agent
+agent_description: Handles questions about internal company documents including HR Bylaws, Procurement Manuals (Business Process and Ariba Aligned), Abu Dhabi Procurement Standards, and Information Security policies. Searches through indexed PDF documents using semantic vector search.
+
+agent_name: db_rag_agent
+agent_description: Handles questions about conversation history, chat analytics, message statistics, or any data that requires SQL queries against the database. Can query conversations, messages, and summaries tables.
+"""
+
+
+class SupervisorOutput(BaseModel):
+    """Structured output for multi-agent routing (v3 pattern)."""
+    next_agents: list[str] = Field(
+        description="List of agent names to route the query to. Can be one or multiple agents."
+    )
+    modified_queries: list[str] = Field(
+        description="Modified/refined query for each agent. Must have same length as next_agents."
+    )
+    reasoning: str = Field(
+        description="Brief explanation of why these agents were chosen."
+    )
+
+
+def create_supervisor(llm, members: list[str]):
+    """
+    Creates a supervisor node that routes queries to multiple agents.
+
+    v3 improvement over v1/v2:
+    - v1: Routes to SINGLE agent
+    - v2: Routes to SINGLE agent + modifies query
+    - v3: Routes to MULTIPLE agents + modifies query for each
+    """
+
+    system_prompt = f"""You are a supervisor routing user queries to specialized agents.
+
+Available agents:
+{AGENT_DESCRIPTIONS}
+
+RULES:
+1. Analyze the user query and determine which agent(s) should handle it.
+2. You can route to ONE or MULTIPLE agents if the query has multiple intents.
+3. For each agent, provide a modified query optimized for that agent's capability.
+4. Only route to agents from this list: {members}
+5. If no agent is suitable, set next_agents to ["FINISH"].
+
+Examples:
+- "What are the procurement rules?" → next_agents: ["doc_rag_agent"]
+- "Search the web for AI news" → next_agents: ["web_rag_agent"]
+- "How many conversations happened today?" → next_agents: ["db_rag_agent"]
+- "Find procurement policies AND search web for latest regulations" → next_agents: ["doc_rag_agent", "web_rag_agent"]
+"""
+
+    def supervisor_node(state: MessagesState) -> Command:
+        messages = [{"role": "system", "content": system_prompt}]
+        for m in state["messages"]:
+            role = "user"
+            if hasattr(m, "type"):
+                role = m.type
+            if role == "human":
+                role = "user"
+            elif role == "ai":
+                role = "assistant"
+            elif role == "system":
+                role = "system"
+            else:
+                role = "user"
+            messages.append({"role": role, "content": str(m.content)})
+
+        try:
+            response = llm.with_structured_output(SupervisorOutput).invoke(messages)
+            logger.info(f"Supervisor routing to: {response.next_agents}")
+            logger.info(f"Reasoning: {response.reasoning}")
+
+            # Filter valid agents
+            valid_agents = [a for a in response.next_agents if a in members]
+
+            if not valid_agents:
+                logger.info("No valid agents, ending.")
+                return Command(goto=END)
+
+            # Store routing info in messages for agents to use
+            routing_msg = SystemMessage(
+                content=f"[ROUTING] Agents: {valid_agents}, Queries: {response.modified_queries}"
+            )
+
+            # Send to all valid agents (v3 multi-agent batching)
+            return Command(
+                update={"messages": [routing_msg]},
+                goto=valid_agents,
+            )
+
+        except Exception as e:
+            logger.error(f"Supervisor routing failed: {e}", exc_info=True)
+            return Command(goto=END)
+
+    return supervisor_node
