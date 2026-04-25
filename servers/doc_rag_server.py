@@ -25,7 +25,9 @@ load_dotenv()
 
 mcp = FastMCP("Doc RAG Server")
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://raguser:ragpassword@localhost:5432/agentic_rag")
+DATABASE_URL = os.getenv(
+    "DATABASE_URL", "postgresql://raguser:ragpassword@localhost:5432/agentic_rag"
+)
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 OLLAMA_EMBEDDING_MODEL = os.getenv("OLLAMA_EMBEDDING_MODEL", "nomic-embed-text:v1.5")
 
@@ -46,7 +48,9 @@ def get_embedding(text: str) -> list[float]:
     return response.json()["embeddings"][0]
 
 
-def vector_search(query_embedding: list[float], top_k: int = 5, filename_filter: str = None) -> list[dict]:
+def vector_search(
+    query_embedding: list[float], top_k: int = 5, filename_filter: str = None
+) -> list[dict]:
     """Perform cosine similarity search on pgvector."""
     conn = psycopg2.connect(DATABASE_URL)
     try:
@@ -79,11 +83,15 @@ def vector_search(query_embedding: list[float], top_k: int = 5, filename_filter:
         results = []
         for text, metadata, similarity in rows:
             meta = metadata if isinstance(metadata, dict) else json.loads(metadata)
-            results.append({
-                "text": text,
-                "source": meta.get("source_document", meta.get("filename", "unknown")),
-                "similarity": round(float(similarity), 4),
-            })
+            results.append(
+                {
+                    "text": text,
+                    "source": meta.get(
+                        "source_document", meta.get("filename", "unknown")
+                    ),
+                    "similarity": round(float(similarity), 4),
+                }
+            )
         return results
     finally:
         conn.close()

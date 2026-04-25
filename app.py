@@ -11,11 +11,9 @@ Run with:  uv run uvicorn app:app --reload --port 8080
 
 import os
 import logging
-import asyncio
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 
@@ -23,7 +21,9 @@ from agent.graph import build_graph, MCPToolManager
 
 load_dotenv()
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
 
 # Global references
@@ -83,9 +83,7 @@ async def chat(request: ChatRequest):
     """
     logger.info(f"Query: {request.query}")
 
-    result = await graph.ainvoke(
-        {"messages": [("user", request.query)]}
-    )
+    result = await graph.ainvoke({"messages": [("user", request.query)]})
 
     # Extract the final response and which agents were used
     agents_used = []
@@ -116,7 +114,6 @@ async def list_agents():
     agents = {}
     for server_name, tools in tool_manager._tools.items():
         agents[server_name] = [
-            {"name": t.name, "description": t.description}
-            for t in tools
+            {"name": t.name, "description": t.description} for t in tools
         ]
     return {"agents": agents}

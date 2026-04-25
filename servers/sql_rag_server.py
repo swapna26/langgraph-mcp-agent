@@ -16,7 +16,6 @@ Run standalone:  uv run servers/sql_rag_server.py
 """
 
 import os
-import json
 import re
 import httpx
 import psycopg2
@@ -41,6 +40,7 @@ MAX_ROWS = 100
 # ---------------------------------------------------------------------------
 # Database helpers
 # ---------------------------------------------------------------------------
+
 
 def _get_connection():
     """Get a read-only PostgreSQL connection."""
@@ -79,15 +79,17 @@ def _fetch_table_schema(table_name: str) -> dict:
         cur = conn.cursor()
 
         # Column info
-        cur.execute("""
+        cur.execute(
+            """
             SELECT column_name, data_type, is_nullable
             FROM information_schema.columns
             WHERE table_name = %s AND table_schema = 'public'
             ORDER BY ordinal_position
-        """, (table_name,))
+        """,
+            (table_name,),
+        )
         columns = [
-            {"name": r[0], "type": r[1], "nullable": r[2]}
-            for r in cur.fetchall()
+            {"name": r[0], "type": r[1], "nullable": r[2]} for r in cur.fetchall()
         ]
 
         if not columns:
@@ -96,7 +98,11 @@ def _fetch_table_schema(table_name: str) -> dict:
         # Sample rows (3)
         col_names = [c["name"] for c in columns]
         # Exclude large vector/embedding columns from sample
-        safe_cols = [c for c in col_names if "embedding" not in c.lower() and "vector" not in c.lower()]
+        safe_cols = [
+            c
+            for c in col_names
+            if "embedding" not in c.lower() and "vector" not in c.lower()
+        ]
         if not safe_cols:
             safe_cols = col_names[:5]
 
@@ -106,7 +112,11 @@ def _fetch_table_schema(table_name: str) -> dict:
         for row in cur.fetchall():
             sample_rows.append(dict(zip(safe_cols, [str(v) for v in row])))
 
-        return {"table_name": table_name, "columns": columns, "sample_rows": sample_rows}
+        return {
+            "table_name": table_name,
+            "columns": columns,
+            "sample_rows": sample_rows,
+        }
     finally:
         conn.close()
 
@@ -136,11 +146,22 @@ def _validate_sql(sql: str) -> str | None:
     if not upper.startswith("SELECT"):
         return "Only SELECT queries are allowed."
 
-    forbidden = ["DROP", "DELETE", "UPDATE", "INSERT", "ALTER", "TRUNCATE",
-                 "CREATE", "GRANT", "REVOKE", "EXEC", "EXECUTE"]
+    forbidden = [
+        "DROP",
+        "DELETE",
+        "UPDATE",
+        "INSERT",
+        "ALTER",
+        "TRUNCATE",
+        "CREATE",
+        "GRANT",
+        "REVOKE",
+        "EXEC",
+        "EXECUTE",
+    ]
     for keyword in forbidden:
         # Match as whole word to avoid false positives
-        if re.search(rf'\b{keyword}\b', upper):
+        if re.search(rf"\b{keyword}\b", upper):
             return f"Forbidden keyword '{keyword}' detected in query."
 
     return None
@@ -149,6 +170,7 @@ def _validate_sql(sql: str) -> str | None:
 # ---------------------------------------------------------------------------
 # LLM helper — calls local Ollama (Mistral)
 # ---------------------------------------------------------------------------
+
 
 def _call_ollama(prompt: str, system_prompt: str = "") -> str:
     """Call the local Ollama LLM and return the response text."""
@@ -170,7 +192,9 @@ def _call_ollama(prompt: str, system_prompt: str = "") -> str:
 def _extract_sql(llm_output: str) -> str:
     """Extract SQL from the LLM output, handling markdown code blocks."""
     # Try to find SQL in ```sql ... ``` blocks
-    match = re.search(r'```(?:sql)?\s*\n?(.*?)\n?```', llm_output, re.DOTALL | re.IGNORECASE)
+    match = re.search(
+        r"```(?:sql)?\s*\n?(.*?)\n?```", llm_output, re.DOTALL | re.IGNORECASE
+    )
     if match:
         return match.group(1).strip()
 
@@ -182,7 +206,7 @@ def _extract_sql(llm_output: str) -> str:
             candidate = llm_output[idx:].strip()
             # Remove trailing explanation text after semicolon
             if ";" in candidate:
-                candidate = candidate[:candidate.index(";") + 1]
+                candidate = candidate[: candidate.index(";") + 1]
             return candidate.strip().rstrip(";")
 
     # Fallback: return the whole thing stripped
@@ -192,6 +216,7 @@ def _extract_sql(llm_output: str) -> str:
 # ---------------------------------------------------------------------------
 # MCP Tools
 # ---------------------------------------------------------------------------
+
 
 @mcp.tool()
 def list_tables() -> dict:
@@ -247,8 +272,7 @@ def text_to_sql(question: str) -> dict:
             schema = _fetch_table_schema(t)
             if "error" not in schema:
                 cols = ", ".join(
-                    f'{c["name"]} ({c["type"]})'
-                    for c in schema["columns"]
+                    f"{c['name']} ({c['type']})" for c in schema["columns"]
                 )
                 schemas.append(f"Table: {t}\n  Columns: {cols}")
 

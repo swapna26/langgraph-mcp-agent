@@ -58,16 +58,21 @@ def create_agent_node(llm, tools: list, agent_name: str):
                     tool_args = tool_call["args"]
 
                     if tool_name in tool_map:
-                        logger.info(f"[{agent_name}] Calling MCP tool: {tool_name}({tool_args})")
+                        logger.info(
+                            f"[{agent_name}] Calling MCP tool: {tool_name}({tool_args})"
+                        )
                         result = await tool_map[tool_name].ainvoke(tool_args)
                         tool_results.append(f"[{tool_name}]: {result}")
 
                 # Get final response from LLM with tool results
                 tool_context = "\n".join(tool_results)
                 followup = await llm.ainvoke(
-                    state["messages"] + [
+                    state["messages"]
+                    + [
                         AIMessage(content=response.content or "Calling tools..."),
-                        HumanMessage(content=f"Tool results:\n{tool_context}\n\nPlease provide a clear, helpful answer based on these results.")
+                        HumanMessage(
+                            content=f"Tool results:\n{tool_context}\n\nPlease provide a clear, helpful answer based on these results."
+                        ),
                     ]
                 )
                 final_content = followup.content
@@ -76,9 +81,7 @@ def create_agent_node(llm, tools: list, agent_name: str):
 
             return Command(
                 update={
-                    "messages": [
-                        HumanMessage(content=final_content, name=agent_name)
-                    ]
+                    "messages": [HumanMessage(content=final_content, name=agent_name)]
                 },
                 goto=END,
             )
@@ -88,7 +91,9 @@ def create_agent_node(llm, tools: list, agent_name: str):
             return Command(
                 update={
                     "messages": [
-                        HumanMessage(content=f"Error in {agent_name}: {str(e)}", name=agent_name)
+                        HumanMessage(
+                            content=f"Error in {agent_name}: {str(e)}", name=agent_name
+                        )
                     ]
                 },
                 goto=END,
@@ -138,10 +143,7 @@ async def build_graph(project_dir: str) -> tuple:
     for agent_name, server_name in agent_server_map.items():
         tools = tool_manager.get_tools_by_server(server_name)
         if tools:
-            builder.add_node(
-                agent_name,
-                create_agent_node(llm, tools, agent_name)
-            )
+            builder.add_node(agent_name, create_agent_node(llm, tools, agent_name))
             logger.info(f"Added agent node: {agent_name} ({len(tools)} MCP tools)")
         else:
             logger.warning(f"No tools for {agent_name}, skipping")

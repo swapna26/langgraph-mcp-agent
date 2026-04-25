@@ -37,6 +37,7 @@ agent_description: Use for natural language questions about data that require SQ
 
 class SupervisorOutput(BaseModel):
     """Structured output for multi-agent routing (v3 pattern)."""
+
     next_agents: list[str] = Field(
         description="List of agent names to route the query to. Can be one or multiple agents."
     )

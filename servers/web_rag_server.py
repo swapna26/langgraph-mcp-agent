@@ -29,11 +29,13 @@ def web_search(query: str, top_k: int = 5) -> dict:
 
         formatted = []
         for r in results:
-            formatted.append({
-                "title": r.get("title", ""),
-                "link": r.get("href", ""),
-                "content": r.get("body", ""),
-            })
+            formatted.append(
+                {
+                    "title": r.get("title", ""),
+                    "link": r.get("href", ""),
+                    "content": r.get("body", ""),
+                }
+            )
 
         return {"data": formatted, "question": query, "result_count": len(formatted)}
 

@@ -1,4 +1,5 @@
 """Quick test to debug the supervisor routing."""
+
 import os
 import asyncio
 import logging
@@ -8,6 +9,7 @@ from agent.supervisor import SupervisorOutput
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
+
 
 async def test():
     llm = ChatGoogleGenerativeAI(
@@ -47,5 +49,6 @@ Route the user query to the appropriate agent(s). You MUST choose at least one a
         print("  ✓ PASSED\n")
     except Exception as e:
         print(f"  ✗ FAILED: {e}\n")
+
 
 asyncio.run(test())

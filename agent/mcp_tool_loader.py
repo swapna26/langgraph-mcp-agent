@@ -8,7 +8,6 @@ This is the KEY piece that replaces the hardcoded tool_registry.py from v3.
 Instead of importing tools directly, we DISCOVER them from MCP servers.
 """
 
-import json
 import asyncio
 import logging
 from dataclasses import dataclass
@@ -23,6 +22,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class MCPServerConfig:
     """Configuration for an MCP server."""
+
     name: str
     command: str
     args: list[str]
@@ -65,7 +65,9 @@ class MCPToolManager:
 
     def __init__(self, project_dir: str):
         self.project_dir = project_dir
-        self._sessions: dict[str, tuple] = {}  # name -> (session, read, write, cm1, cm2)
+        self._sessions: dict[
+            str, tuple
+        ] = {}  # name -> (session, read, write, cm1, cm2)
         self._tools: dict[str, list[StructuredTool]] = {}  # server_name -> tools
 
     async def connect_all(self) -> dict[str, list[StructuredTool]]:
@@ -75,7 +77,9 @@ class MCPToolManager:
             try:
                 tools = await self._connect_server(server_config)
                 all_tools[server_config.name] = tools
-                logger.info(f"Connected to '{server_config.name}': {len(tools)} tools discovered")
+                logger.info(
+                    f"Connected to '{server_config.name}': {len(tools)} tools discovered"
+                )
             except Exception as e:
                 logger.error(f"Failed to connect to '{server_config.name}': {e}")
                 all_tools[server_config.name] = []
@@ -114,7 +118,9 @@ class MCPToolManager:
 
         return langchain_tools
 
-    def _mcp_to_langchain(self, session: ClientSession, mcp_tool, server_name: str) -> StructuredTool:
+    def _mcp_to_langchain(
+        self, session: ClientSession, mcp_tool, server_name: str
+    ) -> StructuredTool:
         """Convert an MCP tool to a LangChain StructuredTool."""
         tool_name = mcp_tool.name
         tool_desc = mcp_tool.description or ""
@@ -150,6 +156,7 @@ class MCPToolManager:
             loop = asyncio.get_event_loop()
             if loop.is_running():
                 import concurrent.futures
+
                 with concurrent.futures.ThreadPoolExecutor() as pool:
                     future = pool.submit(asyncio.run, call_mcp_tool(**kwargs))
                     return future.result()

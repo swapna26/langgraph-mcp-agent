@@ -12,7 +12,6 @@ Run standalone:  uv run servers/db_rag_server.py
 """
 
 import os
-import json
 import psycopg2
 from dotenv import load_dotenv
 from mcp.server.fastmcp import FastMCP
@@ -21,7 +20,9 @@ load_dotenv()
 
 mcp = FastMCP("DB RAG Server")
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://raguser:ragpassword@localhost:5432/agentic_rag")
+DATABASE_URL = os.getenv(
+    "DATABASE_URL", "postgresql://raguser:ragpassword@localhost:5432/agentic_rag"
+)
 
 
 def get_table_schemas() -> str:
@@ -46,9 +47,7 @@ def get_table_schemas() -> str:
                 ORDER BY ordinal_position
             """)
             columns = cur.fetchall()
-            col_info = ", ".join(
-                f"{col[0]} ({col[1]})" for col in columns
-            )
+            col_info = ", ".join(f"{col[0]} ({col[1]})" for col in columns)
             schemas.append(f"Table: {table}\n  Columns: {col_info}")
 
         return "\n\n".join(schemas)
@@ -120,9 +119,15 @@ def get_table_sample(table_name: str, limit: int = 5) -> dict:
     Useful for understanding the data format before writing queries.
     Only works with: conversations, conversation_messages, conversation_summaries
     """
-    allowed_tables = {"conversations", "conversation_messages", "conversation_summaries"}
+    allowed_tables = {
+        "conversations",
+        "conversation_messages",
+        "conversation_summaries",
+    }
     if table_name not in allowed_tables:
-        return {"error": f"Table '{table_name}' not allowed. Choose from: {allowed_tables}"}
+        return {
+            "error": f"Table '{table_name}' not allowed. Choose from: {allowed_tables}"
+        }
 
     try:
         results = execute_sql(f"SELECT * FROM {table_name} LIMIT {min(limit, 10)}")
