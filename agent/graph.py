@@ -123,6 +123,7 @@ async def build_graph(project_dir: str) -> tuple:
         "web_rag_agent": "web_rag",
         "doc_rag_agent": "doc_rag",
         "db_rag_agent": "db_rag",
+        "sql_agent": "sql_rag",
     }
     members = list(agent_server_map.keys())
 

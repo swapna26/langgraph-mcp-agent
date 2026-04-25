@@ -45,6 +45,11 @@ MCP_SERVERS = [
         command="uv",
         args=["run", "--directory", "", "servers/db_rag_server.py"],
     ),
+    MCPServerConfig(
+        name="sql_rag",
+        command="uv",
+        args=["run", "--directory", "", "servers/sql_rag_server.py"],
+    ),
 ]
 
 
