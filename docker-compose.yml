@@ -1,0 +1,68 @@
+# Docker Compose — Production Deployment
+# ========================================
+# Runs all 3 services together:
+#   1. app       — FastAPI application (your code)
+#   2. postgres  — PostgreSQL database
+#   3. ollama    — On-premise LLM server (Mistral)
+#
+# Start:  docker compose up -d
+# Stop:   docker compose down
+# Logs:   docker compose logs -f app
+
+services:
+  # --- Your Python Application ---
+  app:
+    build: .                              # Build from Dockerfile in current directory
+    # In production, replace 'build' with:
+    # image: yourdockerhub/rag-agent:latest
+    ports:
+      - "8080:8080"
+    environment:
+      - DATABASE_URL=postgresql://raguser:ragpassword@postgres:5432/agentic_rag
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - OLLAMA_MODEL=mistral
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ollama:
+        condition: service_started
+    restart: unless-stopped
+
+  # --- PostgreSQL Database ---
+  postgres:
+    image: postgres:16
+    environment:
+      - POSTGRES_USER=raguser
+      - POSTGRES_PASSWORD=ragpassword
+      - POSTGRES_DB=agentic_rag
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data    # Data persists across restarts
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U raguser -d agentic_rag"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # --- On-Premise LLM (Ollama) ---
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_models:/root/.ollama        # Models persist across restarts
+    # For NVIDIA GPU access in production, uncomment:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  ollama_models:
