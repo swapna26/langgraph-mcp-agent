@@ -88,30 +88,12 @@ jobs:
           DATABASE_URL: postgresql://raguser:ragpassword@localhost:5432/agentic_rag
         run: |
           uv run python -c "
-          import psycopg2
-          conn = psycopg2.connect('$DATABASE_URL')
+          import os, psycopg2
+          conn = psycopg2.connect(os.environ['DATABASE_URL'])
           conn.autocommit = True
           cur = conn.cursor()
-          cur.execute('''
-            CREATE TABLE IF NOT EXISTS conversations (
-              id VARCHAR PRIMARY KEY,
-              user_id VARCHAR,
-              title VARCHAR,
-              created_at TIMESTAMPTZ DEFAULT NOW(),
-              updated_at TIMESTAMPTZ DEFAULT NOW(),
-              is_active BOOLEAN DEFAULT TRUE,
-              extra_metadata TEXT
-            )
-          ''')
-          cur.execute('''
-            CREATE TABLE IF NOT EXISTS conversation_messages (
-              id VARCHAR PRIMARY KEY,
-              conversation_id VARCHAR REFERENCES conversations(id),
-              role VARCHAR,
-              content TEXT,
-              created_at TIMESTAMPTZ DEFAULT NOW()
-            )
-          ''')
+          cur.execute('CREATE TABLE IF NOT EXISTS conversations (id VARCHAR PRIMARY KEY, user_id VARCHAR, title VARCHAR, created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW(), is_active BOOLEAN DEFAULT TRUE, extra_metadata TEXT)')
+          cur.execute('CREATE TABLE IF NOT EXISTS conversation_messages (id VARCHAR PRIMARY KEY, conversation_id VARCHAR REFERENCES conversations(id), role VARCHAR, content TEXT, created_at TIMESTAMPTZ DEFAULT NOW())')
           cur.execute(\"INSERT INTO conversations (id, title) VALUES ('test1', 'Test conversation 1')\")
           cur.execute(\"INSERT INTO conversations (id, title) VALUES ('test2', 'Test conversation 2')\")
           cur.execute(\"INSERT INTO conversations (id, title) VALUES ('test3', 'Test conversation 3')\")
@@ -139,4 +121,4 @@ jobs:
           DATABASE_URL: postgresql://raguser:ragpassword@localhost:5432/agentic_rag
           OLLAMA_BASE_URL: http://localhost:11434
           OLLAMA_MODEL: llama3.2:1b
-        run: uv run pytest tests/test_integration.py -v --timeout=120
+        run: uv run pytest tests/test_integration.py -v
